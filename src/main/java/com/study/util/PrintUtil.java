@@ -9,10 +9,10 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.itextpdf.io.image.ImageData;
 import com.itextpdf.io.image.ImageDataFactory;
-import com.itextpdf.kernel.color.Color;
+import com.itextpdf.kernel.colors.Color;
+import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
-import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -20,13 +20,15 @@ import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.property.AreaBreakType;
-import org.krysalis.barcode4j.HumanReadablePlacement;
-import org.krysalis.barcode4j.impl.code39.Code39Bean;
-import org.krysalis.barcode4j.output.bitmap.BitmapCanvasProvider;
+import net.coobird.thumbnailator.Thumbnails;
+import net.coobird.thumbnailator.geometry.Positions;
+import org.springframework.util.ResourceUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,12 +51,21 @@ public class PrintUtil {
         return new AreaBreak(AreaBreakType.NEXT_PAGE);
     }
 
-    public static Text getText(String font, Color color, String fontProgram) throws IOException {
-        return new Text(font)
-                .setFontColor(color)
-                .setFont(PdfFontFactory.createFont(fontProgram));
+    public static Text getText(String font, int size, boolean hasUnderLine) {
+        Text text = new Text(font)
+                .setFontSize(size);
+        if (hasUnderLine) {
+            text.setUnderline();
+        }
+        return text;
+    }
+    public static Text newLine () {
+        return new Text("\n");
     }
 
+    public static PdfFont getPdfFont() throws IOException {
+        return PdfFontFactory.createFont("STSong-Light", "UniGB-UCS2-H", true);
+    }
 
     /**
      * 生成二维码
@@ -75,8 +86,37 @@ public class PrintUtil {
         BitMatrix bitMatrix = new MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, width, height, encodeHints);
         bitMatrix = deleteWhite(bitMatrix);
         FileOutputStream fos = new FileOutputStream(new File(System.getProperty("user.dir") + "/temp", content + ".png"));
-        MatrixToImageWriter.writeToStream(bitMatrix, "png", fos);
+        MatrixToImageWriter.writeToStream(bitMatrix, "jpg", fos);
         return ImageIO.read(file);
+    }
+
+    public static byte[] setQrCodeWatermark(InputStream is, int width, int height) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        Thumbnails.of(is)
+                // 设置图片大小
+                .size(width, height)
+                // 加水印 参数：1.水印位置 2.水印图片 3.不透明度0.0-1.0
+                .watermark(Positions.CENTER, getWatermark(getDefWatermarkSize(width),
+                        getDefWatermarkSize(height)), 1F)
+                .toOutputStream(byteArrayOutputStream);
+        return byteArrayOutputStream.toByteArray();
+    }
+
+    private static int getDefWatermarkSize(int value) {
+        return BigDecimal.valueOf(value).divide(BigDecimal.valueOf(3), 0, RoundingMode.HALF_DOWN).intValue();
+    }
+
+    public static BufferedImage getWatermark(int width, int height) throws IOException {
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        File sourceFile = ResourceUtils.getFile("classpath:image/logo.jpg");
+        Thumbnails.of(new FileInputStream(sourceFile))
+                // 设置图片大小
+                .size(width, height)
+                // 加水印 参数：1.水印位置 2.水印图片 3.不透明度0.0-1.0
+                .toOutputStream(byteArrayOutputStream);
+        byte[] bytes = byteArrayOutputStream.toByteArray();
+        return ImageIO.read(new ByteArrayInputStream(bytes));
     }
 
     public static byte[] getQRToByte(String content, int width, int height) throws IOException, WriterException {
@@ -89,7 +129,7 @@ public class PrintUtil {
         BitMatrix bitMatrix = new MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, width, height, encodeHints);
         bitMatrix = deleteWhite(bitMatrix);
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        MatrixToImageWriter.writeToStream(bitMatrix, "png", os);
+        MatrixToImageWriter.writeToStream(bitMatrix, "jpg", os);
         return os.toByteArray();
     }
 
