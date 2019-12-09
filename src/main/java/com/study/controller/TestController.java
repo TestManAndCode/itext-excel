@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSON;
 import com.google.zxing.WriterException;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.DeviceCmyk;
+import com.itextpdf.kernel.pdf.PdfName;
+import com.itextpdf.kernel.pdf.PdfNumber;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.canvas.draw.DashedLine;
 import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
@@ -43,7 +45,11 @@ public class TestController {
         for (int i = 0; i <= 3; i++) {
             createWmsPrintInfo(document);
             //下一页
-            document.add(PrintUtil.nextPage());
+            document.getPdfDocument().getPage(i+1).put(PdfName.Rotate,new PdfNumber(270));
+            if(i!=3){
+                document.add(PrintUtil.nextPage());
+            }
+
         }
         document.close();
     }
